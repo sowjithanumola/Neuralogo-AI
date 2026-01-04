@@ -4,12 +4,15 @@ import { ImageSize, DiscoveryQuestion } from "../types";
 
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 
+const SYSTEM_PROMPT = "You are the Neurologo Synthesis Engine, an elite brand identity consultant and designer. You never mention Gemini, Google, or your AI nature. You communicate with absolute professionalism and a minimalist aesthetic. Your mission is to define the future of visual branding through 'Blue Synthesis'.";
+
 export const generateDiscoveryQuestions = async (name: string, concept: string): Promise<DiscoveryQuestion[]> => {
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: `Brand Name: "${name}". Mission: "${concept}". Generate exactly 5 highly strategic discovery questions for a brand identity designer. The questions should help extract unique visual metaphors, desired brand personality (e.g., playful vs corporate), and specific aesthetic preferences.`,
+    model: 'gemini-3-flash-preview',
+    contents: `Brand Name: "${name}". Mission: "${concept}". Generate exactly 5 highly strategic discovery questions for a brand identity designer. The questions should help extract unique visual metaphors, desired brand personality, and specific aesthetic preferences.`,
     config: {
+      systemInstruction: SYSTEM_PROMPT,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.ARRAY,
@@ -33,8 +36,9 @@ export const generateLogo = async (name: string, concept: string, answers: Recor
   const ai = getAI();
   const refinedContext = Object.entries(answers).map(([_, a]) => a).join(". ");
   
+  // Using gemini-2.5-flash-image for general image generation to avoid mandatory API key selection UI requirement
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-image-preview',
+    model: 'gemini-2.5-flash-image',
     contents: {
       parts: [{ 
         text: `Design a premium, professional logo for a brand named "${name}". 
@@ -46,9 +50,9 @@ export const generateLogo = async (name: string, concept: string, answers: Recor
       }],
     },
     config: {
+      systemInstruction: SYSTEM_PROMPT,
       imageConfig: {
-        aspectRatio: "1:1",
-        imageSize: size
+        aspectRatio: "1:1"
       }
     },
   });
@@ -77,6 +81,9 @@ export const editLogo = async (prompt: string, base64Image: string): Promise<str
         { text: `Apply this precise refinement to the logo: ${prompt}. Ensure the logo remains blue-themed, professional, and centered on a white background.` },
       ],
     },
+    config: {
+      systemInstruction: SYSTEM_PROMPT
+    }
   });
 
   const parts = response.candidates?.[0]?.content?.parts;

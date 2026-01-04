@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
-import { LogoProject, ImageSize, DiscoveryQuestion } from './types';
+import React, { useState, useEffect } from 'react';
+import { LogoProject, ImageSize } from './types';
 import Button from './components/Button';
 import { generateDiscoveryQuestions, generateLogo, editLogo } from './services/gemini';
 
-type Step = 'initial' | 'discovery' | 'generating' | 'results';
+type Step = 'setup' | 'initial' | 'discovery' | 'generating' | 'results';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>('initial');
@@ -18,6 +18,24 @@ const App: React.FC = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [editPrompt, setEditPrompt] = useState('');
   const [selectedSize, setSelectedSize] = useState<ImageSize>('1K');
+
+  useEffect(() => {
+    const checkKey = async () => {
+      // If API_KEY is missing in env, and we are in an environment with aistudio key selection
+      if (!process.env.API_KEY && window.aistudio?.hasSelectedApiKey) {
+        const has = await window.aistudio.hasSelectedApiKey();
+        if (!has) setStep('setup');
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleOpenKeySelector = async () => {
+    if (window.aistudio?.openSelectKey) {
+      await window.aistudio.openSelectKey();
+      setStep('initial');
+    }
+  };
 
   const startDiscovery = async () => {
     if (!name || !concept) return;
@@ -34,7 +52,15 @@ const App: React.FC = () => {
       });
       setStep('discovery');
     } catch (err: any) {
-      setError("Strategic engine initialization failed. Ensure your API key is configured.");
+      console.error(err);
+      if (err.message?.includes("Requested entity was not found")) {
+        setStep('setup');
+        setError("API Key configuration lost or invalid. Please re-select your key.");
+      } else if (err.message?.includes("API key not valid")) {
+        setError("The provided API key is invalid. Please check your environment variables.");
+      } else {
+        setError("Strategic engine initialization failed. Ensure your connection is stable and API key is correct.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +76,8 @@ const App: React.FC = () => {
       setCurrentProject(prev => prev ? ({ ...prev, imageUrl, answers }) : null);
       setStep('results');
     } catch (err: any) {
-      setError("Visual synthesis failed. Check your network or environment variable API key.");
+      console.error(err);
+      setError("Visual synthesis failed. Please try a different prompt or check your API credits.");
       setStep('discovery');
     } finally {
       setIsLoading(false);
@@ -66,6 +93,7 @@ const App: React.FC = () => {
       setCurrentProject(prev => prev ? ({ ...prev, imageUrl: newUrl }) : null);
       setEditPrompt('');
     } catch (err: any) {
+      console.error(err);
       setError("Refinement encountered a neural error.");
     } finally {
       setIsLoading(false);
@@ -81,9 +109,28 @@ const App: React.FC = () => {
     setError(null);
   };
 
+  if (step === 'setup') {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="max-w-md w-full text-center space-y-10 p-12 glass rounded-[48px] blue-glow">
+          <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-blue-200">
+            <span className="text-white font-black text-4xl italic">N</span>
+          </div>
+          <div className="space-y-4">
+            <h1 className="text-3xl font-black tracking-tighter">Initialize Core</h1>
+            <p className="text-slate-500 font-medium">To access the high-fidelity synthesis engine, you must connect your professional API credentials.</p>
+            <p className="text-xs text-slate-400">Ensure billing is enabled at <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-600 underline">ai.google.dev/gemini-api/docs/billing</a></p>
+          </div>
+          <Button onClick={handleOpenKeySelector} className="w-full py-5 text-lg rounded-[24px]">
+            Select Project Key
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white flex flex-col items-center">
-      {/* Navbar */}
       <nav className="w-full h-20 border-b border-slate-100 bg-white/90 backdrop-blur-xl flex items-center justify-between px-8 sticky top-0 z-30">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={reset}>
           <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center transition-all group-hover:rotate-6 shadow-xl shadow-blue-200">
@@ -167,21 +214,6 @@ const App: React.FC = () => {
                   />
                 </div>
               ))}
-
-              <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm space-y-6">
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Technical Resolution</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {(['1K', '2K', '4K'] as ImageSize[]).map(sz => (
-                    <button 
-                      key={sz} 
-                      onClick={() => setSelectedSize(sz)}
-                      className={`py-4 rounded-2xl text-xs font-black transition-all border-2 ${selectedSize === sz ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-100' : 'bg-slate-50 text-slate-400 border-transparent hover:border-blue-100'}`}
-                    >
-                      {sz}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               <Button 
                 className="w-full py-8 text-2xl rounded-[32px] h-24 mt-8" 
@@ -273,7 +305,7 @@ const App: React.FC = () => {
           <span className="font-black text-xl tracking-tighter text-slate-900">Neurologo</span>
         </div>
         <p className="text-slate-300 text-[10px] tracking-[0.5em] font-black uppercase">
-          Synthesized by Gemini 3 & Nano Banana &copy; {new Date().getFullYear()}
+          Synthesized by the Neurologo Engine &copy; {new Date().getFullYear()}
         </p>
       </footer>
 
