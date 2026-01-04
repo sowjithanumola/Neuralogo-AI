@@ -2,7 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageSize, DiscoveryQuestion } from "../types";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 
 export const generateDiscoveryQuestions = async (name: string, concept: string): Promise<DiscoveryQuestion[]> => {
   const ai = getAI();
@@ -53,11 +53,15 @@ export const generateLogo = async (name: string, concept: string, answers: Recor
     },
   });
 
-  for (const part of response.candidates?.[0]?.content.parts || []) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+  const candidates = response.candidates;
+  if (candidates && candidates.length > 0) {
+    for (const part of candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
     }
   }
+  
   throw new Error("Neural synthesis failed to produce an image. Please refine your inputs.");
 };
 
@@ -75,10 +79,14 @@ export const editLogo = async (prompt: string, base64Image: string): Promise<str
     },
   });
 
-  for (const part of response.candidates?.[0]?.content.parts || []) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+  const candidates = response.candidates;
+  if (candidates && candidates.length > 0) {
+    for (const part of candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
     }
   }
+
   throw new Error("Refinement engine failed.");
 };
