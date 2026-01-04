@@ -21,10 +21,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkKey = async () => {
-      // If API_KEY is missing in env, and we are in an environment with aistudio key selection
-      if (!process.env.API_KEY && window.aistudio?.hasSelectedApiKey) {
-        const has = await window.aistudio.hasSelectedApiKey();
-        if (!has) setStep('setup');
+      // Check if API_KEY is missing in env, and then check aistudio global
+      const envKey = process.env.API_KEY;
+      if (!envKey) {
+        if (window.aistudio?.hasSelectedApiKey) {
+          const has = await window.aistudio.hasSelectedApiKey();
+          if (!has) setStep('setup');
+        }
       }
     };
     checkKey();
@@ -33,6 +36,7 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
+      // Assume success and proceed immediately to mitigate race condition
       setStep('initial');
     }
   };
@@ -53,13 +57,14 @@ const App: React.FC = () => {
       setStep('discovery');
     } catch (err: any) {
       console.error(err);
+      // Reset key selection state if entity not found error occurs
       if (err.message?.includes("Requested entity was not found")) {
         setStep('setup');
         setError("API Key configuration lost or invalid. Please re-select your key.");
       } else if (err.message?.includes("API key not valid")) {
-        setError("The provided API key is invalid. Please check your environment variables.");
+        setError("The provided API key is invalid. Please check your settings.");
       } else {
-        setError("Strategic engine initialization failed. Ensure your connection is stable and API key is correct.");
+        setError("Strategic engine initialization failed. Ensure your connection is stable.");
       }
     } finally {
       setIsLoading(false);
@@ -118,8 +123,8 @@ const App: React.FC = () => {
           </div>
           <div className="space-y-4">
             <h1 className="text-3xl font-black tracking-tighter">Initialize Core</h1>
-            <p className="text-slate-500 font-medium">To access the high-fidelity synthesis engine, you must connect your professional API credentials.</p>
-            <p className="text-xs text-slate-400">Ensure billing is enabled at <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-600 underline">ai.google.dev/gemini-api/docs/billing</a></p>
+            <p className="text-slate-500 font-medium">To access high-fidelity synthesis, connect your professional API credentials.</p>
+            <p className="text-xs text-slate-400">Ensure billing is enabled at <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-600 underline" rel="noopener noreferrer">ai.google.dev/gemini-api/docs/billing</a></p>
           </div>
           <Button onClick={handleOpenKeySelector} className="w-full py-5 text-lg rounded-[24px]">
             Select Project Key
@@ -176,6 +181,31 @@ const App: React.FC = () => {
                     className="w-full bg-slate-50 border-2 border-slate-50 rounded-3xl px-8 py-5 text-2xl font-bold focus:outline-none transition-all h-36 resize-none placeholder:text-slate-300"
                   />
                 </div>
+
+                <div className="space-y-3">
+                  <label className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] px-1">Synthesis Quality</label>
+                  <div className="flex gap-4">
+                    {(['1K', '2K', '4K'] as ImageSize[]).map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(size)}
+                        className={`flex-1 py-4 rounded-2xl font-bold border-2 transition-all ${
+                          selectedSize === size 
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100' 
+                            : 'bg-white border-slate-100 text-slate-500 hover:border-blue-200'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                  {(selectedSize === '2K' || selectedSize === '4K') && (
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2">
+                      High-fidelity synthesis requires gemini-3-pro model and your own API key.
+                    </p>
+                  )}
+                </div>
+
                 <Button 
                   className="w-full py-6 text-xl rounded-[32px] h-20" 
                   onClick={startDiscovery} 
@@ -237,7 +267,7 @@ const App: React.FC = () => {
             </div>
             <div className="text-center space-y-3">
               <h2 className="text-4xl font-black tracking-tighter">Synthesizing DNA...</h2>
-              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.4em]">Optimizing Blue Vectors for {name}</p>
+              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.4em]">Optimizing Blue {selectedSize} Vectors for {name}</p>
             </div>
           </div>
         )}

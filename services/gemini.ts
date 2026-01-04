@@ -2,12 +2,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageSize, DiscoveryQuestion } from "../types";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
-
+// The Neurologo Synthesis Engine system prompt
 const SYSTEM_PROMPT = "You are the Neurologo Synthesis Engine, an elite brand identity consultant and designer. You never mention Gemini, Google, or your AI nature. You communicate with absolute professionalism and a minimalist aesthetic. Your mission is to define the future of visual branding through 'Blue Synthesis'.";
 
 export const generateDiscoveryQuestions = async (name: string, concept: string): Promise<DiscoveryQuestion[]> => {
-  const ai = getAI();
+  // Create a new GoogleGenAI instance right before making an API call using the mandatory API_KEY
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Brand Name: "${name}". Mission: "${concept}". Generate exactly 5 highly strategic discovery questions for a brand identity designer. The questions should help extract unique visual metaphors, desired brand personality, and specific aesthetic preferences.`,
@@ -29,16 +29,21 @@ export const generateDiscoveryQuestions = async (name: string, concept: string):
     }
   });
 
+  // Extract text content from GenerateContentResponse
   return JSON.parse(response.text || "[]");
 };
 
 export const generateLogo = async (name: string, concept: string, answers: Record<string, string>, size: ImageSize): Promise<string> => {
-  const ai = getAI();
+  // Upgrade to gemini-3-pro-image-preview for high-quality images (2K/4K)
+  const isHighQuality = size === '2K' || size === '4K';
+  const model = isHighQuality ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+  
+  // Create a new GoogleGenAI instance right before making an API call using the mandatory API_KEY
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const refinedContext = Object.entries(answers).map(([_, a]) => a).join(". ");
   
-  // Using gemini-2.5-flash-image for general image generation to avoid mandatory API key selection UI requirement
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
+    model: model,
     contents: {
       parts: [{ 
         text: `Design a premium, professional logo for a brand named "${name}". 
@@ -52,13 +57,16 @@ export const generateLogo = async (name: string, concept: string, answers: Recor
     config: {
       systemInstruction: SYSTEM_PROMPT,
       imageConfig: {
-        aspectRatio: "1:1"
+        aspectRatio: "1:1",
+        // imageSize is only supported for gemini-3-pro-image-preview
+        ...(isHighQuality ? { imageSize: size } : {})
       }
     },
   });
 
   const parts = response.candidates?.[0]?.content?.parts;
   if (parts) {
+    // Iterate through all parts to find the image part
     for (const part of parts) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
@@ -70,7 +78,8 @@ export const generateLogo = async (name: string, concept: string, answers: Recor
 };
 
 export const editLogo = async (prompt: string, base64Image: string): Promise<string> => {
-  const ai = getAI();
+  // Create a new GoogleGenAI instance right before making an API call using the mandatory API_KEY
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, "");
 
   const response = await ai.models.generateContent({
@@ -88,6 +97,7 @@ export const editLogo = async (prompt: string, base64Image: string): Promise<str
 
   const parts = response.candidates?.[0]?.content?.parts;
   if (parts) {
+    // Iterate through all parts to find the image part
     for (const part of parts) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;

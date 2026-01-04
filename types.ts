@@ -24,15 +24,17 @@ export interface LogoProject {
   createdAt: number;
 }
 
-// Renamed to avoid name collision with the environment-provided AIStudio global type
-export interface AIStudioClient {
+// Define the AIStudio interface to be used in the global Window declaration
+export interface AIStudio {
   hasSelectedApiKey: () => Promise<boolean>;
   openSelectKey: () => Promise<void>;
 }
 
-/**
- * Note: The window.aistudio property is pre-configured and globally declared by the environment.
- * Manually redeclaring it here (especially as a module augmentation) causes conflict errors 
- * regarding modifiers (like 'readonly') and type identity. We rely on the platform's 
- * existing global definitions for aistudio.
- */
+declare global {
+  interface Window {
+    // The environment defines aistudio as a readonly property of type AIStudio
+    readonly aistudio: AIStudio;
+  }
+}
+
+export {};
