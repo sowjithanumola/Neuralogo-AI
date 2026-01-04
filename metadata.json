@@ -1,0 +1,7 @@
+{
+  "name": "Neurologo",
+  "description": "A high-end AI logo creation and campaign research platform powered by Gemini 3 and Nano Banana technology.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
